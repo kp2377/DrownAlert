@@ -1,5 +1,14 @@
 #include <Wire.h>
 
+//--Acceleration parameter--//
+#define ACCELERATION_X_DANGER 1800
+#define ACCELERATION_Y_DANGER 1670
+#define ACCELERATION_Z_DANGER 1990
+
+boolean ACC_X_FLAG;
+boolean ACC_Y_FLAG;
+boolean ACC_Z_FLAG;
+
 #define LSM9DS1_AccelGyro 0x6B
 #define LSM9DS1_Magnet    0x1E
 
@@ -146,65 +155,8 @@ int16_t temperature;
 float gBias[3], aBias[3], mBias[3];
 
 int16_t gBiasRaw[3], aBiasRaw[3], mBiasRaw[3];
-
 //-----------------------------------------------
 
-void setup() 
-{
-  Serial.begin(115200);
-  
-  init();
-  
-  if (!begin())
-  {
-    Serial.println("Failed to communicate with LSM9DS1.");
-    while (1)
-      ;
-  }
-}
-
-void loop()
-{
-  readGyro();
-  
-  Serial.print("$GYR,");
-  Serial.print(calcGyro(gx), 4);
-  Serial.print(",");
-  Serial.print(calcGyro(gy), 4);
-  Serial.print(",");
-  Serial.print(calcGyro(gz), 4);
-  Serial.print(" deg/s\t");
-
-  readAccel();
-  
-  Serial.print("$ACC,");
-  Serial.print(calcAccel(ax), 4);
-  Serial.print(",");
-  Serial.print(calcAccel(ay), 4);
-  Serial.print(",");
-  Serial.print(calcAccel(az), 4);
-  Serial.print(" g\t");
-
-  readMag();
-  
-  Serial.print("$MAG,");
-  Serial.print(calcMag(mx), 4);
-  Serial.print(", ");
-  Serial.print(calcMag(my), 4);
-  Serial.print(", ");
-  Serial.print(calcMag(mz), 4);
-  Serial.print(" gauss");
-
-  float roll = 180.0 / PI * atan2(ay, az);
-  float pitch = 180.0 / PI * atan2(-ax, sqrt(ay * ay + az * az));
-  
-  Serial.print("\tPitch, Roll: ");
-  Serial.print(pitch, 2);
-  Serial.print(", ");
-  Serial.println(roll, 2);
-  
-  delay(100);
-}
 
 uint16_t begin()
 {
@@ -294,6 +246,8 @@ void init()
   settings.gyro.orientation = 0;
   settings.gyro.latchInterrupt = true;
 
+  //---------------------------------------------------------------
+
   settings.accel.enabled = true;
   settings.accel.enableX = true;
   settings.accel.enableY = true;
@@ -320,7 +274,7 @@ void init()
   // 0 = ODR/50    2 = ODR/9
   // 1 = ODR/100   3 = ODR/400
   settings.accel.highResBandwidth = 0;
-
+//---------------------------------------------------------------------------
   settings.mag.enabled = true;
   
   // mag scale can be 4, 8, 12, or 16
@@ -743,4 +697,36 @@ uint8_t I2CreadBytes(uint8_t i2cAddress, uint8_t registerAddress, uint8_t * dest
     }
   }
   return count;
+}
+
+//-----------------------------------------------
+int acc_x, acc_y, acc_z;
+void setup() 
+{
+  Serial.begin(115200);
+  
+  
+  init();
+  
+  if (!begin())
+  {
+    Serial.println("Failed to communicate with LSM9DS1....");
+    while (1)
+      ;
+  }
+}
+
+void loop()
+{
+  readAccel();
+  
+  acc_x = abs(1000*calcAccel(ax));
+  acc_y = abs(1000*(0.0400-abs(calcAccel(ay))));
+  acc_z = abs(1000*(abs(calcAccel(az))));
+  Serial.println(acc_z);
+  (acc_x > ACCELERATION_X_DANGER)?ACC_X_FLAG=HIGH:ACC_X_FLAG=LOW;
+  (acc_y > ACCELERATION_Y_DANGER)?ACC_Y_FLAG=HIGH:ACC_Y_FLAG=LOW;
+  (acc_z > ACCELERATION_Z_DANGER)?ACC_Z_FLAG=HIGH:ACC_Z_FLAG=LOW;
+  (ACC_X_FLAG & ACC_Y_FLAG & ACC_Z_FLAG)?Serial.println(4000):Serial.println(acc_y);
+  delay(50);
 }
