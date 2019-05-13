@@ -1,4 +1,12 @@
-#include <Wire.h>
+#include <i2c_t3.h>
+#include <Arduino.h>
+#include <BMP180MI.h>
+
+
+#define I2C_ADDRESS 0x77
+
+
+BMP180I2C bmp180(I2C_ADDRESS);
 
 //--Acceleration parameter--//
 #define ACCELERATION_X_DANGER 1800
@@ -9,12 +17,21 @@ boolean ACC_X_FLAG;
 boolean ACC_Y_FLAG;
 boolean ACC_Z_FLAG;
 
+//--Gyroscope parameter--//
+#define GYROSCOPE_X_DANGER 244
+#define GYROSCOPE_Y_DANGER 244
+#define GYROSCOPE_Z_DANGER 244
+
+boolean GYRO_X_FLAG;
+boolean GYRO_Y_FLAG;
+boolean GYRO_Z_FLAG;
+
 #define LSM9DS1_AccelGyro 0x6B
 #define LSM9DS1_Magnet    0x1E
 
 #define LSM9DS1_COMMUNICATION_TIMEOUT 1000
 
-// LSM9DS1 Accel/Gyro (XL/G) Registers
+// LSM9DS1 Accel/Gyro (XL/G) Reg isters
 #define WHO_AM_I_XG       0x0F
 #define CTRL_REG1_G       0x10
 #define CTRL_REG2_G       0x11
@@ -701,22 +718,36 @@ uint8_t I2CreadBytes(uint8_t i2cAddress, uint8_t registerAddress, uint8_t * dest
 
 //-----------------------------------------------
 int acc_x, acc_y, acc_z;
+int gyro_x, gyro_y, gyro_z;
 void setup() 
 {
   Serial.begin(115200);
-  
-  
+  delay(100);
+  Wire1.begin(); 
+  if (!bmp180.begin())
+  {
+    Serial.println("begin() failed. check your BMP180 Interface and I2C Address.");
+    while (1);
+  }
+  bmp180.resetToDefaults();
+  bmp180.setSamplingMode(BMP180MI::MODE_UHR);
   init();
-  
   if (!begin())
   {
     Serial.println("Failed to communicate with LSM9DS1....");
     while (1)
       ;
   }
+  if (!bmp180.begin())
+  {
+    Serial.println("begin() failed. check your BMP180 Interface and I2C Address.");
+    while (1);
+  }
+  bmp180.resetToDefaults();
+  bmp180.setSamplingMode(BMP180MI::MODE_UHR);
 }
 
-void loop()
+void accel_values(void)
 {
   readAccel();
   
@@ -727,6 +758,25 @@ void loop()
   (acc_x > ACCELERATION_X_DANGER)?ACC_X_FLAG=HIGH:ACC_X_FLAG=LOW;
   (acc_y > ACCELERATION_Y_DANGER)?ACC_Y_FLAG=HIGH:ACC_Y_FLAG=LOW;
   (acc_z > ACCELERATION_Z_DANGER)?ACC_Z_FLAG=HIGH:ACC_Z_FLAG=LOW;
-  (ACC_X_FLAG & ACC_Y_FLAG & ACC_Z_FLAG)?Serial.println(4000):Serial.println(acc_y);
-  delay(50);
+  (ACC_X_FLAG & ACC_Y_FLAG & ACC_Z_FLAG)?Serial.println("yes"):Serial.println("no");
+}
+
+void gyro_values(void)
+{
+  
+}
+
+void loop()
+{
+  readGyro();
+  
+  gyro_x = abs(calcGyro(gx));
+  gyro_y = abs(calcGyro(gy));
+  gyro_z = abs(calcGyro(gz));   
+  (gyro_x >= GYROSCOPE_X_DANGER)?GYRO_X_FLAG=HIGH:GYRO_X_FLAG=LOW;
+  (gyro_y >= GYROSCOPE_Y_DANGER)?GYRO_Y_FLAG=HIGH:GYRO_Y_FLAG=LOW;
+  (gyro_z >= GYROSCOPE_Z_DANGER)?GYRO_Z_FLAG=HIGH:GYRO_Z_FLAG=LOW;
+  (GYRO_X_FLAG & GYRO_Y_FLAG & GYRO_Z_FLAG)?Serial.println("DANGERRR!!"):Serial.println(bmp180.getPressure());
+
+  
 }
