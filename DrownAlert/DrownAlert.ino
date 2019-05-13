@@ -17,6 +17,8 @@ boolean ACC_X_FLAG;
 boolean ACC_Y_FLAG;
 boolean ACC_Z_FLAG;
 
+boolean ACC;
+
 //--Gyroscope parameter--//
 #define GYROSCOPE_X_DANGER 244
 #define GYROSCOPE_Y_DANGER 244
@@ -25,6 +27,14 @@ boolean ACC_Z_FLAG;
 boolean GYRO_X_FLAG;
 boolean GYRO_Y_FLAG;
 boolean GYRO_Z_FLAG;
+
+boolean GYRO;
+
+//--------------------------------
+uint16_t pressure;
+boolean PRESS;
+
+#define PRESSURE_DANGER 28800
 
 #define LSM9DS1_AccelGyro 0x6B
 #define LSM9DS1_Magnet    0x1E
@@ -747,36 +757,55 @@ void setup()
   bmp180.setSamplingMode(BMP180MI::MODE_UHR);
 }
 
-void accel_values(void)
+bool accel_values(void)
 {
   readAccel();
   
   acc_x = abs(1000*calcAccel(ax));
   acc_y = abs(1000*(0.0400-abs(calcAccel(ay))));
   acc_z = abs(1000*(abs(calcAccel(az))));
-  Serial.println(acc_z);
   (acc_x > ACCELERATION_X_DANGER)?ACC_X_FLAG=HIGH:ACC_X_FLAG=LOW;
   (acc_y > ACCELERATION_Y_DANGER)?ACC_Y_FLAG=HIGH:ACC_Y_FLAG=LOW;
   (acc_z > ACCELERATION_Z_DANGER)?ACC_Z_FLAG=HIGH:ACC_Z_FLAG=LOW;
-  (ACC_X_FLAG & ACC_Y_FLAG & ACC_Z_FLAG)?Serial.println("yes"):Serial.println("no");
+  return (ACC_X_FLAG & ACC_Y_FLAG & ACC_Z_FLAG)?HIGH:LOW;
 }
 
-void gyro_values(void)
-{
-  
-}
-
-void loop()
+bool gyro_values(void)
 {
   readGyro();
-  
   gyro_x = abs(calcGyro(gx));
   gyro_y = abs(calcGyro(gy));
   gyro_z = abs(calcGyro(gz));   
   (gyro_x >= GYROSCOPE_X_DANGER)?GYRO_X_FLAG=HIGH:GYRO_X_FLAG=LOW;
   (gyro_y >= GYROSCOPE_Y_DANGER)?GYRO_Y_FLAG=HIGH:GYRO_Y_FLAG=LOW;
   (gyro_z >= GYROSCOPE_Z_DANGER)?GYRO_Z_FLAG=HIGH:GYRO_Z_FLAG=LOW;
-  (GYRO_X_FLAG & GYRO_Y_FLAG & GYRO_Z_FLAG)?Serial.println("DANGERRR!!"):Serial.println(bmp180.getPressure());
+  return (GYRO_X_FLAG & GYRO_Y_FLAG & GYRO_Z_FLAG)?HIGH:LOW;
+}
 
-  
+ bool pressure_values(void)
+{
+  int target;
+  target = bmp180.measurePressure();
+  while (!bmp180.hasValue());
+  pressure = bmp180.getPressure();
+  return (pressure >= PRESSURE_DANGER)?HIGH:LOW;
+}
+uint16_t interval = 10000;
+unsigned long previousMillis;
+
+void loop()
+{
+  ACC = accel_values();
+  GYRO = gyro_values();
+  PRESS = pressure_values();
+  Serial.println(pressure);
+  previousMillis = millis();
+   if(PRESS)
+  {
+    while((millis()- previousMillis) <= interval)
+    {
+      (ACC & GYRO)? Serial.println(0xfe):Serial.println(0x55);
+    }
+  }
+   
 }
