@@ -729,8 +729,13 @@ uint8_t I2CreadBytes(uint8_t i2cAddress, uint8_t registerAddress, uint8_t * dest
 //-----------------------------------------------
 int acc_x, acc_y, acc_z;
 int gyro_x, gyro_y, gyro_z;
+bool  vella;
 void setup() 
 {
+  pinMode(13, OUTPUT);
+  digitalWrite(13, LOW);
+  pinMode(15, OUTPUT);
+  digitalWrite(15, HIGH);
   Serial.begin(115200);
   delay(100);
   Wire1.begin(); 
@@ -795,17 +800,20 @@ unsigned long previousMillis;
 
 void loop()
 {
-  ACC = accel_values();
-  GYRO = gyro_values();
   PRESS = pressure_values();
-  Serial.println(pressure);
   previousMillis = millis();
    if(PRESS)
   {
+    Serial.println("entering loop");
     while((millis()- previousMillis) <= interval)
     {
-      (ACC & GYRO)? Serial.println(0xfe):Serial.println(0x55);
+      ACC = accel_values();
+      GYRO = gyro_values();
+      (ACC & GYRO)?vella=1:PRESS=0;
+      if (vella){digitalWrite(13, HIGH);digitalWrite(15, LOW);}
+      if (vella){Serial.print(0xff);}
     }
+    
   }
    
 }
